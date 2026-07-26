@@ -1,0 +1,42 @@
+# Copy to config.yaml and adjust. See PRD.md section 6 for why the
+# authorization field exists and is not optional.
+
+authorization:
+  # Set to true only after confirming you have the right to test this
+  # target (your own account/API key, or written client authorization).
+  i_am_authorized_to_test_this_target: false
+
+target:
+  name: "example-small-model"        # used to label the report/findings files
+  endpoint_env: TARGET_ENDPOINT
+  api_key_env: TARGET_API_KEY
+  model_env: TARGET_MODEL
+  max_requests_per_minute: 20
+
+judge:
+  # Separate model role used only to score attack success — not the
+  # system under test. See PRD.md section 7.
+  endpoint_env: JUDGE_ENDPOINT
+  api_key_env: JUDGE_API_KEY
+  model_env: JUDGE_MODEL
+
+run:
+  # Phase 1 (MVP) categories only — see PRD.md section 17.
+  # "indirect_injection" and multi-turn escalation are Phase 2.
+  attack_categories:
+    - direct_injection
+    - jailbreak
+    - system_prompt_leak
+    - benign_baseline
+  converters:
+    - none
+    - base64
+    - rot13
+  # Repeated per payload/converter combo — LLM sampling is non-deterministic,
+  # so a single attempt isn't a reliable finding. See PRD.md section 16.
+  trials_per_payload: 5
+  max_attempts_total: 500
+
+report:
+  output_dir: reports
+  redact_critical_raw_output: true

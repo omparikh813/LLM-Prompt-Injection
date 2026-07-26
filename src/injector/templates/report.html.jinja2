@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 2cm; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 11px; }
+  h1 { font-size: 22px; margin-bottom: 0; }
+  h2 { font-size: 15px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 28px; }
+  .subtitle { color: #555; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f2f2f2; }
+  .severity-Critical { color: #ffffff; background: #b00020; font-weight: bold; }
+  .severity-High { color: #ffffff; background: #d84315; font-weight: bold; }
+  .severity-Medium { color: #1a1a1a; background: #f9a825; }
+  .severity-Low { color: #1a1a1a; background: #cddc39; }
+  .severity-Info { color: #1a1a1a; background: #e0e0e0; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; }
+  .finding { page-break-inside: avoid; margin-top: 14px; border: 1px solid #ddd; padding: 10px; }
+  .finding-header { display: flex; justify-content: space-between; }
+  .mono { font-family: "Courier New", monospace; white-space: pre-wrap; background: #f7f7f7; padding: 6px; border-radius: 4px; }
+  .caveat { background: #fff8e1; border: 1px solid #ffe082; padding: 10px; margin-top: 10px; }
+  .meta { color: #555; }
+</style>
+</head>
+<body>
+
+<h1>LLM Prompt Injection &amp; Jailbreak Assessment</h1>
+<div class="subtitle">Target model: <strong>{{ model_id }}</strong> &middot; Tested at: {{ tested_at }}</div>
+
+<h2>1. Executive Summary</h2>
+<table>
+  <tr>
+    {% for sev in severity_order %}
+    <th>{{ sev }}</th>
+    {% endfor %}
+  </tr>
+  <tr>
+    {% for sev in severity_order %}
+    <td class="severity-{{ sev }}">{{ severity_counts.get(sev, 0) }}</td>
+    {% endfor %}
+  </tr>
+</table>
+<p>{{ total_findings }} payload/converter combinations were tested. Each was run multiple times per
+the configured trial count; findings below report a success rate rather than a single pass/fail
+result, since LLM sampling is non-deterministic.</p>
+
+<h2>2. Methodology</h2>
+<p>
+Attacks were executed via the <a href="https://github.com/microsoft/PyRIT">PyRIT</a> framework directly
+against the target model's API. Each payload was sent as-is and, separately, through one or more
+encoding/obfuscation converters (e.g. Base64, ROT13) to test filter-bypass resistance. Success was
+judged by a separate LLM acting as an automated scorer, using a per-payload description of what a
+successful attack looks like.
+</p>
+<p>
+This is a point-in-time automated assessment, not an exhaustive security audit. Findings rated
+Critical or High should be manually verified before remediation work is prioritized against them —
+see the confidence field on each finding.
+</p>
+<div class="caveat">
+<strong>Scope caveat:</strong> this assessment tests the model's own behavior via direct API access.
+A production deployment often wraps the model with additional input/output moderation middleware
+that this test does not exercise. These findings represent model-level exposure, not a guarantee
+about the resistance of the full deployed system — test the full stack separately if such
+middleware exists.
+</div>
+
+<h2>3. Findings</h2>
+{% for row in rows %}
+<div class="finding">
+  <div class="finding-header">
+    <div>
+      <span class="pill severity-{{ row.severity }}">{{ row.severity }}</span>
+      <strong>{{ row.payload_id }}</strong> &middot; {{ row.category }} &middot; converter: {{ row.converter }}
+    </div>
+    <div class="meta">success rate: {{ row.success_rate_display }} &middot; confidence: {{ row.confidence }}</div>
+  </div>
+  <p class="meta">OWASP: {{ row.owasp }} &middot; MITRE ATLAS: {{ row.atlas }}
+    {% if row.error_count %} &middot; {{ row.error_count }} transport error(s) during trials{% endif %}
+  </p>
+  <p><strong>Prompt sent:</strong></p>
+  <div class="mono">{{ row.prompt_sent }}</div>
+  <p><strong>Representative model behavior / judge rationale:</strong></p>
+  <div class="mono">{{ row.sample_response }}</div>
+</div>
+{% endfor %}
+
+<h2>4. Appendix</h2>
+<p>Full per-attempt data (including failed attempts) is retained in the accompanying JSON findings
+log generated alongside this report. Model version/endpoint used is recorded per the target
+configuration at run time; re-running against a hosted "latest" model tag may not reproduce a
+finding exactly if the provider has since updated the underlying weights.</p>
+
+</body>
+</html>

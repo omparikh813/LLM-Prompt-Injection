@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+.env
+*.db
+*.duckdb
+
+reports/*.pdf
+reports/*.json
+!reports/.gitkeep
