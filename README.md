@@ -78,21 +78,3 @@ naming scheme) — if `pip install pyrit` gives you an older release using
 that API, either upgrade to a version with the `executor.attack` module, or
 adapt the imports in `src/injector/findings.py` and `core.py` accordingly.
 
-## Tests
-
-```bash
-pytest
-```
-
-Tests cover config/authorization/converter logic and report generation —
-they don't call any real model API. Running the tool end-to-end
-(`injector ...`) does require valid target/judge credentials.
-
-## Methodology notes
-
-See `PRD.md` section 16 for the full rationale. In short: findings report
-a success *rate* across repeated trials (not a single pass/fail), Critical
-and High findings should be spot-checked by a human before being treated
-as confirmed, and this tool tests the model's own behavior via direct API
-access — a production deployment may have additional moderation middleware
-this doesn't exercise.
