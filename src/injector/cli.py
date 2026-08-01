@@ -7,7 +7,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from .core import AuthorizationError, load_payloads, load_yaml, require_authorization
 from .findings import run_attacks, save_findings_json
@@ -15,7 +15,11 @@ from .report import build_pdf
 
 
 def main() -> None:
-    load_dotenv()
+    # usecwd=True: search from the directory the command is run from, not
+    # from wherever this installed module happens to live on disk (the
+    # default stack-frame-based search misses the user's .env entirely
+    # when running from a console_script entry point).
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(prog="injector", description="PyRIT-based LLM prompt injection tester")
     parser.add_argument("--config", default="data/config.example.yaml", help="Path to run config YAML")
