@@ -7,10 +7,9 @@ of direct injection, jailbreak, and system-prompt-leak attempts against a
 target model's API (with a benign baseline for comparison), scores success
 with a separate judge LLM, and produces a PDF findings report.
 
-See `PRD.md` for the full product spec — this is the Phase 1 (MVP) build:
-single-turn attacks + encoding converters + automated scoring + PDF report.
-Multi-turn escalation and indirect injection are Phase 2, not yet
-implemented.
+This is the Phase 1 (MVP) build: single-turn attacks + encoding converters +
+automated scoring + PDF report. Multi-turn escalation and indirect
+injection are Phase 2, not yet implemented.
 
 ## Before you run this against anything
 
@@ -18,7 +17,7 @@ This tool actively attacks a live model endpoint. Only point it at a
 target you have the right to test — your own account/API key, or written
 authorization if testing on behalf of someone else. The config has an
 explicit `authorization.i_am_authorized_to_test_this_target` flag that
-must be set to `true` before a run will execute. See `PRD.md` section 6.
+must be set to `true` before a run will execute.
 
 ## Setup
 
@@ -26,6 +25,12 @@ must be set to `true` before a run will execute. See `PRD.md` section 6.
 pip install -e ".[dev]"
 cp .env.example .env        # fill in your target + judge model credentials
 cp data/config.example.yaml data/config.yaml
+```
+
+On macOS, report generation also needs Pango/GLib installed natively:
+
+```bash
+brew install pango glib
 ```
 
 Edit `data/config.yaml`:
