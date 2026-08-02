@@ -21,6 +21,7 @@
   .finding-header { display: flex; justify-content: space-between; }
   .mono { font-family: "Courier New", monospace; white-space: pre-wrap; background: #f7f7f7; padding: 6px; border-radius: 4px; }
   .caveat { background: #fff8e1; border: 1px solid #ffe082; padding: 10px; margin-top: 10px; }
+  .partial-warning { background: #ffebee; border: 1px solid #ef9a9a; padding: 10px; margin-top: 14px; }
   .meta { color: #555; }
 </style>
 </head>
@@ -42,9 +43,18 @@
     {% endfor %}
   </tr>
 </table>
-<p>{{ total_findings }} payload/converter combinations were tested. Each was run multiple times per
-the configured trial count; findings below report a success rate rather than a single pass/fail
-result, since LLM sampling is non-deterministic.</p>
+<p>{{ combos_completed }} of {{ combos_total }} planned payload/converter combinations were tested.
+Each was run multiple times per the configured trial count; findings below report a success rate
+rather than a single pass/fail result, since LLM sampling is non-deterministic.</p>
+
+{% if stopped_early %}
+<div class="partial-warning">
+<strong>Partial run:</strong> this assessment stopped before covering all planned combinations —
+{{ combos_completed }}/{{ combos_total }} completed. Reason: {{ stop_reason }}. Findings below are
+still valid for what was tested, but the untested combinations carry no signal either way and
+should be re-run separately.
+</div>
+{% endif %}
 
 <h2>2. Methodology</h2>
 <p>

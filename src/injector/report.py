@@ -9,7 +9,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 
-from .findings import Finding
+from .findings import RunSummary
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
@@ -29,7 +29,8 @@ def redact(text: str, severity: str, enabled: bool) -> str:
     return text[:MAX_RESPONSE_CHARS] + "\n\n[REDACTED — full evidence retained in the local findings log only]"
 
 
-def build_pdf(findings: list[Finding], config: dict[str, Any], model_id: str, output_path: str | Path) -> Path:
+def build_pdf(run_summary: RunSummary, config: dict[str, Any], model_id: str, output_path: str | Path) -> Path:
+    findings = run_summary.findings
     report_cfg = config.get("report", {})
     redact_enabled = report_cfg.get("redact_critical_raw_output", True)
 
@@ -60,6 +61,10 @@ def build_pdf(findings: list[Finding], config: dict[str, Any], model_id: str, ou
         severity_counts=severity_counts,
         rows=rows,
         total_findings=len(findings),
+        combos_total=run_summary.combos_total,
+        combos_completed=run_summary.combos_completed,
+        stopped_early=run_summary.stopped_early,
+        stop_reason=run_summary.stop_reason,
     )
 
     output_path = Path(output_path)

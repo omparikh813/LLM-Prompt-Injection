@@ -1,4 +1,4 @@
-from injector.findings import Finding, severity_for
+from injector.findings import Finding, RunSummary, severity_for
 from injector.report import build_pdf, redact
 
 
@@ -53,11 +53,32 @@ def test_build_pdf_generates_a_file(tmp_path):
         _make_finding(category="direct_injection", successes=4, trials=5),
         _make_finding(category="benign_baseline", successes=5, trials=5),
     ]
+    run_summary = RunSummary(
+        findings=findings, combos_total=2, combos_completed=2, stopped_early=False, stop_reason=None
+    )
     config = {"report": {"redact_critical_raw_output": True}}
     output_path = tmp_path / "report.pdf"
 
-    result_path = build_pdf(findings, config, "test-model", output_path)
+    result_path = build_pdf(run_summary, config, "test-model", output_path)
 
     assert result_path == output_path
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_build_pdf_shows_partial_run_banner(tmp_path):
+    findings = [_make_finding(category="direct_injection", successes=1, trials=1)]
+    run_summary = RunSummary(
+        findings=findings,
+        combos_total=10,
+        combos_completed=1,
+        stopped_early=True,
+        stop_reason="Target API rate limit exceeded at combination 2/10",
+    )
+    config = {"report": {"redact_critical_raw_output": True}}
+    output_path = tmp_path / "report.pdf"
+
+    build_pdf(run_summary, config, "test-model", output_path)
+
     assert output_path.exists()
     assert output_path.stat().st_size > 0

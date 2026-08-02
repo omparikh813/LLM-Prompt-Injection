@@ -5,6 +5,7 @@ description = "PyRIT-based prompt injection and jailbreak tester for small/open-
 requires-python = ">=3.10"
 dependencies = [
     "pyrit",
+    "openai>=1.0",
     "pyyaml>=6.0",
     "jinja2>=3.1",
     "weasyprint>=62.0",

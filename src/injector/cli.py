@@ -38,17 +38,19 @@ def main() -> None:
         print("ERROR: no matching payload categories found — check run.attack_categories", file=sys.stderr)
         raise SystemExit(1)
 
-    findings = asyncio.run(run_attacks(config, payloads))
+    run_summary = asyncio.run(run_attacks(config, payloads))
 
     model_id = config["target"].get("name", "target")
     output_dir = Path(config.get("report", {}).get("output_dir", "reports"))
     json_path = output_dir / f"{model_id}-findings.json"
     pdf_path = output_dir / f"{model_id}-report.pdf"
 
-    save_findings_json(findings, json_path)
-    build_pdf(findings, config, model_id, pdf_path)
+    save_findings_json(run_summary, json_path)
+    build_pdf(run_summary, config, model_id, pdf_path)
 
-    print(f"Ran {len(findings)} payload/converter combinations against '{model_id}'.")
+    if run_summary.stopped_early:
+        print(f"Run stopped early: {run_summary.stop_reason}")
+    print(f"Completed {run_summary.combos_completed}/{run_summary.combos_total} combinations against '{model_id}'.")
     print(f"Findings log: {json_path}")
     print(f"PDF report:   {pdf_path}")
 
