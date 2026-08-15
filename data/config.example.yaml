@@ -36,6 +36,14 @@ run:
   # so a single attempt isn't a reliable finding. See PRD.md section 16.
   trials_per_payload: 5
   max_attempts_total: 500
+  # Trials within one payload/converter combo run concurrently, up to this
+  # many at once, via PyRIT's AttackExecutor. The target's own
+  # max_requests_per_minute above still paces outbound requests — this
+  # mainly overlaps response/scoring latency instead of stacking it
+  # sequentially, which matters most on slow free-tier models. Keep this
+  # modest; raising it doesn't let you exceed max_requests_per_minute, and
+  # too high a value on a shaky free endpoint just produces more errors.
+  max_concurrent_trials: 3
 
 report:
   output_dir: reports

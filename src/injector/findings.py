@@ -16,7 +16,12 @@ from typing import Any
 
 from openai import RateLimitError as OpenAIRateLimitError
 from pyrit.converter import Converter
-from pyrit.executor.attack import AttackConverterConfig, AttackScoringConfig, PromptSendingAttack
+from pyrit.executor.attack import (
+    AttackConverterConfig,
+    AttackExecutor,
+    AttackScoringConfig,
+    PromptSendingAttack,
+)
 from pyrit.prompt_normalizer import ConverterConfiguration
 from pyrit.prompt_target import OpenAIChatTarget
 from pyrit.score import SelfAskTrueFalseScorer, TrueFalseQuestion
@@ -137,13 +142,20 @@ async def _run_single_payload(
     converters: list[Converter],
     trials: int,
     model_id: str,
+    executor: AttackExecutor,
 ) -> tuple[Finding, bool]:
     """Run one payload/converter combination for `trials` attempts.
 
+    Trials run concurrently (bounded by `executor`'s max_concurrency) via
+    PyRIT's own AttackExecutor rather than one at a time — the target's
+    max_requests_per_minute throttle still paces the actual outbound
+    requests, but response/scoring latency across trials now overlaps
+    instead of stacking sequentially.
+
     Returns the Finding built from whatever trials actually completed, plus
-    a `rate_limited` flag. On a rate limit, trials stop immediately (further
-    attempts would just fail the same way) but any trials already completed
-    are kept rather than discarded.
+    a `rate_limited` flag if any trial in the batch hit a rate limit. Trials
+    that completed (scored or transport-errored) before/alongside the rate
+    limit are kept rather than discarded.
     """
     scorer = SelfAskTrueFalseScorer.from_question(
         chat_target=judge_target,
@@ -159,31 +171,34 @@ async def _run_single_payload(
         )
     attack = PromptSendingAttack(**attack_kwargs)
 
+    executor_result = await executor.execute_attack_async(
+        attack=attack,
+        objectives=[payload["prompt"]] * trials,
+        return_partial_on_failure=True,
+    )
+
     successes = 0
     errors = 0
-    trials_completed = 0
     rate_limited = False
     sample_response = ""
-    for _ in range(trials):
-        try:
-            result = await attack.execute_async(objective=payload["prompt"])
-        except Exception as exc:
-            if _is_rate_limit_error(exc):
-                rate_limited = True
-                break
-            # A transport/API failure is a distinct outcome from the model
-            # resisting the attack — never scored as a "resisted" trial.
-            errors += 1
-            trials_completed += 1
-            if not sample_response:
-                sample_response = f"[transport error: {exc}]"
-            continue
 
-        trials_completed += 1
+    for result in executor_result.completed_results:
         score = getattr(result, "last_score", None)
         if score is not None and bool(score.get_value()):
             successes += 1
             sample_response = _extract_sample_response(result) or sample_response
+
+    for _objective, exc in executor_result.incomplete_objectives:
+        if _is_rate_limit_error(exc):
+            rate_limited = True
+            continue
+        # A transport/API failure is a distinct outcome from the model
+        # resisting the attack — never scored as a "resisted" trial.
+        errors += 1
+        if not sample_response:
+            sample_response = f"[transport error: {exc}]"
+
+    trials_completed = len(executor_result.completed_results) + errors
 
     finding = Finding(
         payload_id=payload["id"],
@@ -211,6 +226,8 @@ async def run_attacks(config: dict[str, Any], payloads: dict[str, list[dict[str,
     converter_variants = build_converter_variants(run_cfg.get("converters", ["none"]))
     model_id = config["target"].get("name", "unknown-target")
     attempt_budget = run_cfg.get("max_attempts_total", 500)
+    max_concurrency = run_cfg.get("max_concurrent_trials", 3)
+    executor = AttackExecutor(max_concurrency=max_concurrency)
 
     combos = [
         (category, payload, converter_name, converters)
@@ -221,7 +238,7 @@ async def run_attacks(config: dict[str, Any], payloads: dict[str, list[dict[str,
     combos_total = len(combos)
     print(
         f"Starting run: {combos_total} payload/converter combinations, {trials} trial(s) each "
-        f"(~{combos_total * trials} target calls) against '{model_id}'.",
+        f"(up to {max_concurrency} concurrent) (~{combos_total * trials} target calls) against '{model_id}'.",
         flush=True,
     )
 
@@ -251,6 +268,7 @@ async def run_attacks(config: dict[str, Any], payloads: dict[str, list[dict[str,
             converters=converters,
             trials=trials,
             model_id=model_id,
+            executor=executor,
         )
 
         if finding.trials > 0:
