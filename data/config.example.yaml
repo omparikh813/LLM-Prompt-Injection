@@ -11,7 +11,7 @@ target:
   endpoint_env: TARGET_ENDPOINT
   api_key_env: TARGET_API_KEY
   model_env: TARGET_MODEL
-  max_requests_per_minute: 20
+  max_requests_per_minute: 30
 
 judge:
   # Separate model role used only to score attack success — not the
