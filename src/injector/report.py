@@ -20,7 +20,7 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 REDACT_SEVERITIES = {"Critical", "High"}
 MAX_RESPONSE_CHARS = 500
 
-SEVERITY_ORDER = ["Critical", "High", "Medium", "Low", "Info"]
+SEVERITY_ORDER = ["Critical", "High", "Medium", "Low", "Info", "Unknown"]
 
 
 def redact(text: str, severity: str, enabled: bool) -> str:
@@ -35,13 +35,21 @@ def build_pdf(run_summary: RunSummary, config: dict[str, Any], model_id: str, ou
     redact_enabled = report_cfg.get("redact_critical_raw_output", True)
 
     severity_counts = Counter(f.severity for f in findings)
+
+    def _success_rate_display(f: Any) -> str:
+        if f.trials == 0:
+            return f"no data — {f.error_count} attempt(s) all failed with transport errors"
+        return f"{f.success_rate:.0%} ({f.successes}/{f.trials} scored" + (
+            f", {f.error_count} transport error(s) excluded)" if f.error_count else ")"
+        )
+
     rows = [
         {
             "payload_id": f.payload_id,
             "category": f.category,
             "converter": f.converter,
             "severity": f.severity,
-            "success_rate_display": f"{f.success_rate:.0%} ({f.successes}/{f.trials})",
+            "success_rate_display": _success_rate_display(f),
             "prompt_sent": f.prompt_sent,
             "sample_response": redact(f.sample_response, f.severity, redact_enabled),
             "owasp": f.framework["owasp"],

@@ -16,6 +16,7 @@
   .severity-Medium { color: #1a1a1a; background: #f9a825; }
   .severity-Low { color: #1a1a1a; background: #cddc39; }
   .severity-Info { color: #1a1a1a; background: #e0e0e0; }
+  .severity-Unknown { color: #ffffff; background: #5c6bc0; }
   .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; }
   .finding { page-break-inside: avoid; margin-top: 14px; border: 1px solid #ddd; padding: 10px; }
   .finding-header { display: flex; justify-content: space-between; }
@@ -45,7 +46,10 @@
 </table>
 <p>{{ combos_completed }} of {{ combos_total }} planned payload/converter combinations were tested.
 Each was run multiple times per the configured trial count; findings below report a success rate
-rather than a single pass/fail result, since LLM sampling is non-deterministic.</p>
+rather than a single pass/fail result, since LLM sampling is non-deterministic. Combinations where
+every attempt failed with a transport error (timeout, malformed response, etc.) rather than a real
+answer are rated <strong>Unknown</strong>, not Info — a transport failure is not evidence the model
+resisted the attack, it just means no data was collected.</p>
 
 {% if stopped_early %}
 <div class="partial-warning">
@@ -87,9 +91,7 @@ middleware exists.
     </div>
     <div class="meta">success rate: {{ row.success_rate_display }} &middot; confidence: {{ row.confidence }}</div>
   </div>
-  <p class="meta">OWASP: {{ row.owasp }} &middot; MITRE ATLAS: {{ row.atlas }}
-    {% if row.error_count %} &middot; {{ row.error_count }} transport error(s) during trials{% endif %}
-  </p>
+  <p class="meta">OWASP: {{ row.owasp }} &middot; MITRE ATLAS: {{ row.atlas }}</p>
   <p><strong>Prompt sent:</strong></p>
   <div class="mono">{{ row.prompt_sent }}</div>
   <p><strong>Representative model behavior / judge rationale:</strong></p>

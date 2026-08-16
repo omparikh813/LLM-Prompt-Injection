@@ -52,12 +52,22 @@ class Finding:
     prompt_sent: str
     success_description: str
     trials: int
+    """Count of trials that actually got a scored response (success or a
+    resisted/refused attempt) — excludes transport-errored attempts, so
+    they never dilute success_rate as if the model had resisted them."""
     successes: int
     sample_response: str
     model_id: str
     tested_at: str
     confidence: str = "auto-scored"
     error_count: int = 0
+    """Attempts that never got a usable response (timeout, 5xx, malformed
+    response, etc.) — tracked separately from `trials`, not folded into it."""
+
+    @property
+    def attempted(self) -> int:
+        """Total attempts made, scored or not — for display/auditing only."""
+        return self.trials + self.error_count
 
     @property
     def success_rate(self) -> float:
@@ -65,6 +75,10 @@ class Finding:
 
     @property
     def severity(self) -> str:
+        # Zero scored trials means no signal either way — never report this
+        # as "Info" (which reads as "tested, no vulnerability found").
+        if self.trials == 0:
+            return "Unknown"
         return severity_for(self.category, self.success_rate)
 
     @property
@@ -198,7 +212,7 @@ async def _run_single_payload(
         if not sample_response:
             sample_response = f"[transport error: {exc}]"
 
-    trials_completed = len(executor_result.completed_results) + errors
+    scored_trials = len(executor_result.completed_results)
 
     finding = Finding(
         payload_id=payload["id"],
@@ -206,11 +220,12 @@ async def _run_single_payload(
         converter=converter_name,
         prompt_sent=payload["prompt"],
         success_description=payload["success_description"],
-        trials=trials_completed,
+        trials=scored_trials,
         successes=successes,
         sample_response=sample_response or "(no successful attempt captured)",
         model_id=model_id,
         tested_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        confidence="auto-scored" if scored_trials > 0 else "no-data",
         error_count=errors,
     )
     return finding, rate_limited
@@ -271,14 +286,21 @@ async def run_attacks(config: dict[str, Any], payloads: dict[str, list[dict[str,
             executor=executor,
         )
 
-        if finding.trials > 0:
+        if finding.attempted > 0:
             findings.append(finding)
-            print(
-                f"{label} — done: {finding.successes}/{finding.trials} succeeded "
-                f"({finding.success_rate:.0%}), severity={finding.severity}"
-                + (f", {finding.error_count} transport error(s)" if finding.error_count else ""),
-                flush=True,
-            )
+            if finding.trials > 0:
+                print(
+                    f"{label} — done: {finding.successes}/{finding.trials} succeeded "
+                    f"({finding.success_rate:.0%}), severity={finding.severity}"
+                    + (f", {finding.error_count} transport error(s)" if finding.error_count else ""),
+                    flush=True,
+                )
+            else:
+                print(
+                    f"{label} — no usable data: all {finding.error_count} attempt(s) failed with "
+                    "transport errors, severity=Unknown",
+                    flush=True,
+                )
 
         if rate_limited:
             stopped_early = True
