@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -75,12 +75,18 @@ class Finding:
     they never dilute success_rate as if the model had resisted them."""
     successes: int
     sample_response: str
+    """The judge's rationale for the sample — an explanation, not evidence.
+    For literal reproducible evidence, see `raw_responses`."""
     model_id: str
     tested_at: str
     confidence: str = "auto-scored"
     error_count: int = 0
     """Attempts that never got a usable response (timeout, 5xx, malformed
     response, etc.) — tracked separately from `trials`, not folded into it."""
+    raw_responses: list[str] = field(default_factory=list)
+    """The target model's literal, unmodified output for every successful
+    trial — this is the actual evidence to cite when reporting a finding to
+    a vendor, not `sample_response` (which is only the judge's paraphrase)."""
 
     @property
     def attempted(self) -> int:
@@ -148,13 +154,8 @@ def _is_rate_limit_error(exc: BaseException) -> bool:
 
 
 def _extract_sample_response(result: Any) -> str:
-    """Best-effort extraction of judge rationale as report evidence.
-
-    PyRIT's conversation/memory internals are more detailed than this, but
-    depending on the current in-memory conversation schema here would make
-    this brittle across PyRIT versions. The judge's rationale is a stable,
-    documented field and is sufficient evidence for a first draft.
-    """
+    """The judge's rationale — an explanation of the verdict, not the
+    target's actual output. Use `_extract_raw_response` for evidence."""
     score = getattr(result, "last_score", None)
     if score is None:
         return ""
@@ -162,6 +163,16 @@ def _extract_sample_response(result: Any) -> str:
     if rationale:
         return str(rationale)
     return str(score.get_value())
+
+
+def _extract_raw_response(result: Any) -> str:
+    """The target model's literal output text (AttackResult.last_response is
+    a MessagePiece; converted_value falls back to original_value when no
+    converter touched the response, which is always the case here)."""
+    last_response = getattr(result, "last_response", None)
+    if last_response is None:
+        return ""
+    return str(getattr(last_response, "converted_value", "") or getattr(last_response, "original_value", ""))
 
 
 async def _run_single_payload(
@@ -213,12 +224,16 @@ async def _run_single_payload(
     errors = 0
     rate_limited = False
     sample_response = ""
+    raw_responses: list[str] = []
 
     for result in executor_result.completed_results:
         score = getattr(result, "last_score", None)
         if score is not None and bool(score.get_value()):
             successes += 1
             sample_response = _extract_sample_response(result) or sample_response
+            raw = _extract_raw_response(result)
+            if raw:
+                raw_responses.append(raw)
 
     for _objective, exc in executor_result.incomplete_objectives:
         if _is_rate_limit_error(exc):
@@ -245,6 +260,7 @@ async def _run_single_payload(
         tested_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         confidence="auto-scored" if scored_trials > 0 else "no-data",
         error_count=errors,
+        raw_responses=raw_responses,
     )
     return finding, rate_limited
 

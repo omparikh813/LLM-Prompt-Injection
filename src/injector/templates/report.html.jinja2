@@ -94,16 +94,23 @@ middleware exists.
   <p class="meta">OWASP: {{ row.owasp }} &middot; MITRE ATLAS: {{ row.atlas }}</p>
   <p><strong>Prompt sent:</strong></p>
   <div class="mono">{{ row.prompt_sent }}</div>
-  <p><strong>Representative model behavior / judge rationale:</strong></p>
-  <div class="mono">{{ row.sample_response }}</div>
+  <p><strong>Judge rationale (why this was scored a success):</strong></p>
+  <div class="mono">{{ row.judge_rationale }}</div>
+  {% if row.raw_response_excerpt %}
+  <p><strong>Target model's literal response (evidence — 1 of {{ row.raw_response_count }} successful
+  trials; the full set is in the JSON findings log):</strong></p>
+  <div class="mono">{{ row.raw_response_excerpt }}</div>
+  {% endif %}
 </div>
 {% endfor %}
 
 <h2>4. Appendix</h2>
-<p>Full per-attempt data (including failed attempts) is retained in the accompanying JSON findings
-log generated alongside this report. Model version/endpoint used is recorded per the target
-configuration at run time; re-running against a hosted "latest" model tag may not reproduce a
-finding exactly if the provider has since updated the underlying weights.</p>
+<p>Full per-attempt data — including every successful trial's complete, unredacted, literal model
+output (the actual evidence for reporting a finding to a vendor, not just the judge's rationale
+shown above) and all failed attempts — is retained in the accompanying JSON findings log generated
+alongside this report. Model version/endpoint used is recorded per the target configuration at run
+time; re-running against a hosted "latest" model tag may not reproduce a finding exactly if the
+provider has since updated the underlying weights.</p>
 
 </body>
 </html>
