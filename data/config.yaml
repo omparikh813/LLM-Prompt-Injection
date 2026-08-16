@@ -1,0 +1,41 @@
+# Copy to config.yaml and adjust.
+
+target:
+  endpoint_env: TARGET_ENDPOINT
+  api_key_env: TARGET_API_KEY
+  model_env: TARGET_MODEL
+  max_requests_per_minute: 30
+
+judge:
+  # Scores attack success only — not the system under test.
+  endpoint_env: JUDGE_ENDPOINT
+  api_key_env: JUDGE_API_KEY
+  model_env: JUDGE_MODEL
+
+run:
+  attack_categories:
+    - direct_injection
+    - jailbreak
+    - system_prompt_leak
+    - benign_baseline
+  converters:
+    - none
+    - base64
+    - rot13
+  trials_per_payload: 5
+  max_attempts_total: 500
+  # Trials in a combo run concurrently, up to this many at once.
+  max_concurrent_trials: 3
+  # Retries on empty responses, tuned per category — attack payloads may be
+  # content-filtered (retrying won't help); benign_baseline retries more patiently.
+  retry_tuning:
+    default:
+      max_attempts: 2
+      wait_max_seconds: 15
+    benign_baseline:
+      max_attempts: 5
+      wait_max_seconds: 30
+
+report:
+  output_dir: reports
+  redact_critical_raw_output: true

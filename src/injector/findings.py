@@ -28,7 +28,7 @@ from pyrit.prompt_target import OpenAIChatTarget
 from pyrit.score import SelfAskTrueFalseScorer, TrueFalseQuestion
 from pyrit.setup import IN_MEMORY, initialize_pyrit_async
 
-from .core import build_converter_variants, build_judge_target, build_target
+from .core import build_converter_variants, build_judge_target, build_target, resolve_model_id
 
 # OWASP Top 10 for LLM Applications + MITRE ATLAS mapping per attack category,
 # so findings carry a recognized framework reference for both an IT-team
@@ -257,7 +257,7 @@ async def run_attacks(config: dict[str, Any], payloads: dict[str, list[dict[str,
     run_cfg = config["run"]
     trials = run_cfg.get("trials_per_payload", 3)
     converter_variants = build_converter_variants(run_cfg.get("converters", ["none"]))
-    model_id = config["target"].get("name", "unknown-target")
+    model_id = resolve_model_id(config)
     attempt_budget = run_cfg.get("max_attempts_total", 500)
     max_concurrency = run_cfg.get("max_concurrent_trials", 3)
     retry_tuning = {**DEFAULT_RETRY_TUNING, **run_cfg.get("retry_tuning", {})}

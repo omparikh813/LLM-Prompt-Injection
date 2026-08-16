@@ -1,20 +1,21 @@
 import pytest
 
-from injector.core import AuthorizationError, build_converter_variants, load_payloads, require_authorization
+from injector.core import build_converter_variants, load_payloads, resolve_model_id
 
 
-def test_require_authorization_raises_when_unset():
-    with pytest.raises(AuthorizationError):
-        require_authorization({"authorization": {"i_am_authorized_to_test_this_target": False}})
+def test_resolve_model_id_reads_from_configured_env_var(monkeypatch):
+    monkeypatch.setenv("TARGET_MODEL", "some-org/some-model:free")
+
+    model_id = resolve_model_id({"target": {"model_env": "TARGET_MODEL"}})
+
+    assert model_id == "some-org/some-model:free"
 
 
-def test_require_authorization_raises_when_missing():
-    with pytest.raises(AuthorizationError):
-        require_authorization({})
+def test_resolve_model_id_raises_when_env_var_unset(monkeypatch):
+    monkeypatch.delenv("TARGET_MODEL", raising=False)
 
-
-def test_require_authorization_passes_when_true():
-    require_authorization({"authorization": {"i_am_authorized_to_test_this_target": True}})
+    with pytest.raises(RuntimeError):
+        resolve_model_id({"target": {"model_env": "TARGET_MODEL"}})
 
 
 def test_build_converter_variants_none_is_empty_chain():

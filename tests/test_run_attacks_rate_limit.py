@@ -44,7 +44,6 @@ def dummy_env(monkeypatch):
 def _config():
     return {
         "target": {
-            "name": "dummy-target",
             "endpoint_env": "TARGET_ENDPOINT",
             "api_key_env": "TARGET_API_KEY",
             "model_env": "TARGET_MODEL",

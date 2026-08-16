@@ -1,4 +1,4 @@
-"""Config loading, the authorization gate, and PyRIT target/converter construction."""
+"""Config loading and PyRIT target/converter construction."""
 
 from __future__ import annotations
 
@@ -21,22 +21,9 @@ CONVERTER_REGISTRY: dict[str, type[Converter] | None] = {
 }
 
 
-class AuthorizationError(RuntimeError):
-    """Raised when a run is attempted without the authorization ack set."""
-
-
 def load_yaml(path: str | Path) -> dict[str, Any]:
     with open(path, "r") as f:
         return yaml.safe_load(f)
-
-
-def require_authorization(config: dict[str, Any]) -> None:
-    if not config.get("authorization", {}).get("i_am_authorized_to_test_this_target"):
-        raise AuthorizationError(
-            "Refusing to run: set authorization.i_am_authorized_to_test_this_target: true "
-            "in the config, and only after confirming you have the right to test this "
-            "target (your own account/API key, or written client authorization)."
-        )
 
 
 def _env(section: dict[str, Any], key: str) -> str:
@@ -48,6 +35,13 @@ def _env(section: dict[str, Any], key: str) -> str:
             f"Environment variable '{var_name}' is not set (required by config key '{key}'). "
             "Copy .env.example to .env and fill it in."
         )
+
+
+def resolve_model_id(config: dict[str, Any]) -> str:
+    """The target model name, read live from its env var — used to label
+    reports/findings so they can never drift out of sync with what's
+    actually being tested."""
+    return _env(config["target"], "model_env")
 
 
 def build_target(config: dict[str, Any]) -> OpenAIChatTarget:
