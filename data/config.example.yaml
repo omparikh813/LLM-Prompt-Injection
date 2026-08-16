@@ -44,6 +44,15 @@ run:
   # modest; raising it doesn't let you exceed max_requests_per_minute, and
   # too high a value on a shaky free endpoint just produces more errors.
   max_concurrent_trials: 3
+  # Retries on empty responses, tuned per category — attack payloads may be
+  # content-filtered (retrying won't help); benign_baseline retries more patiently.
+  retry_tuning:
+    default:
+      max_attempts: 2
+      wait_max_seconds: 15
+    benign_baseline:
+      max_attempts: 5
+      wait_max_seconds: 30
 
 report:
   output_dir: reports

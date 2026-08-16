@@ -9,6 +9,7 @@ isn't a reliable finding. See PRD.md section 16 ("Methodology Rigor").
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,23 @@ CATEGORY_FRAMEWORK_MAP: dict[str, dict[str, str]] = {
     },
     "benign_baseline": {"owasp": "N/A (control set)", "atlas": "N/A (control set)"},
 }
+
+# Attack payloads may be content-filtered (retrying won't help, so fail fast);
+# benign_baseline failures are more likely transient, so retry more patiently.
+DEFAULT_RETRY_TUNING: dict[str, dict[str, int]] = {
+    "default": {"max_attempts": 2, "wait_max_seconds": 15},
+    "benign_baseline": {"max_attempts": 5, "wait_max_seconds": 30},
+}
+
+
+def _apply_retry_tuning(category: str, retry_tuning: dict[str, dict[str, int]]) -> None:
+    """Set PyRIT's retry env vars for this category (read fresh each retry).
+    Safe since combos run sequentially — concurrent trials share one category."""
+    tuning = retry_tuning.get(category, retry_tuning.get("default", {}))
+    if "max_attempts" in tuning:
+        os.environ["RETRY_MAX_NUM_ATTEMPTS"] = str(tuning["max_attempts"])
+    if "wait_max_seconds" in tuning:
+        os.environ["RETRY_WAIT_MAX_SECONDS"] = str(tuning["wait_max_seconds"])
 
 
 @dataclass
@@ -242,6 +260,7 @@ async def run_attacks(config: dict[str, Any], payloads: dict[str, list[dict[str,
     model_id = config["target"].get("name", "unknown-target")
     attempt_budget = run_cfg.get("max_attempts_total", 500)
     max_concurrency = run_cfg.get("max_concurrent_trials", 3)
+    retry_tuning = {**DEFAULT_RETRY_TUNING, **run_cfg.get("retry_tuning", {})}
     executor = AttackExecutor(max_concurrency=max_concurrency)
 
     combos = [
@@ -273,6 +292,7 @@ async def run_attacks(config: dict[str, Any], payloads: dict[str, list[dict[str,
 
         print(f"{label} — running {trials} trial(s)...", flush=True)
         attempts_used += trials
+        _apply_retry_tuning(category, retry_tuning)
 
         finding, rate_limited = await _run_single_payload(
             target=target,

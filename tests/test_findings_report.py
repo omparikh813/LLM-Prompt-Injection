@@ -1,4 +1,6 @@
-from injector.findings import Finding, RunSummary, severity_for
+import os
+
+from injector.findings import DEFAULT_RETRY_TUNING, Finding, RunSummary, _apply_retry_tuning, severity_for
 from injector.report import build_pdf, redact
 
 
@@ -57,6 +59,41 @@ def test_finding_severity_is_unknown_when_nothing_was_scored():
 def test_finding_severity_is_unknown_even_for_benign_baseline_with_no_data():
     finding = _make_finding(category="benign_baseline", successes=0, trials=0, error_count=5)
     assert finding.severity == "Unknown"
+
+
+# _apply_retry_tuning writes os.environ directly; monkeypatch.setenv here
+# registers the keys for teardown regardless of what overwrites them later.
+def _track_for_cleanup(monkeypatch):
+    monkeypatch.setenv("RETRY_MAX_NUM_ATTEMPTS", "unset")
+    monkeypatch.setenv("RETRY_WAIT_MAX_SECONDS", "unset")
+
+
+def test_apply_retry_tuning_uses_category_specific_values(monkeypatch):
+    _track_for_cleanup(monkeypatch)
+
+    _apply_retry_tuning("benign_baseline", DEFAULT_RETRY_TUNING)
+
+    assert os.environ["RETRY_MAX_NUM_ATTEMPTS"] == "5"
+    assert os.environ["RETRY_WAIT_MAX_SECONDS"] == "30"
+
+
+def test_apply_retry_tuning_falls_back_to_default_for_unlisted_category(monkeypatch):
+    _track_for_cleanup(monkeypatch)
+
+    _apply_retry_tuning("jailbreak", DEFAULT_RETRY_TUNING)
+
+    assert os.environ["RETRY_MAX_NUM_ATTEMPTS"] == "2"
+    assert os.environ["RETRY_WAIT_MAX_SECONDS"] == "15"
+
+
+def test_apply_retry_tuning_respects_config_override(monkeypatch):
+    _track_for_cleanup(monkeypatch)
+    custom_tuning = {**DEFAULT_RETRY_TUNING, "default": {"max_attempts": 1, "wait_max_seconds": 5}}
+
+    _apply_retry_tuning("direct_injection", custom_tuning)
+
+    assert os.environ["RETRY_MAX_NUM_ATTEMPTS"] == "1"
+    assert os.environ["RETRY_WAIT_MAX_SECONDS"] == "5"
 
 
 def test_redact_truncates_only_above_threshold_severities():
