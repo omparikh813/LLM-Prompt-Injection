@@ -1,4 +1,3 @@
-# Copy to config.yaml and adjust.
 
 target:
   endpoint_env: TARGET_ENDPOINT
@@ -21,8 +20,8 @@ run:
     - benign_baseline
   converters:
     - none
-    - base64
-    - rot13
+    # - base64
+    # - rot13
   trials_per_payload: 5
   max_attempts_total: 500
   # Trials in a combo run concurrently, up to this many at once.
