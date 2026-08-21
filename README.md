@@ -3,13 +3,17 @@
 A [PyRIT](https://github.com/microsoft/PyRIT)-based prompt injection and
 jailbreak tester for LLMs, aimed at smaller/open-source models that ship
 with thinner safety tuning than frontier models. It runs a payload library
-of direct injection, jailbreak, and system-prompt-leak attempts against a
-target model's API (with a benign baseline for comparison), scores success
-with a separate judge LLM, and produces a PDF findings report.
+of direct injection, indirect injection, jailbreak, and system-prompt-leak
+attempts against a target model's API (with a benign baseline for
+comparison), scores success with a separate judge LLM, and produces a PDF
+findings report.
 
-This is the Phase 1 (MVP) build: single-turn attacks + encoding converters +
-automated scoring + PDF report. Multi-turn escalation and indirect
-injection are Phase 2, not yet implemented.
+Single-turn attacks + encoding converters + automated scoring + PDF report,
+now including indirect injection (a malicious instruction embedded in
+third-party content the model processes on behalf of the user — an email,
+a webpage, a resume — rather than in the user's own message). Multi-turn
+escalation (RedTeaming/Crescendo) is still a future phase, not yet
+implemented.
 
 ## Setup
 

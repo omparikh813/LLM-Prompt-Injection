@@ -15,6 +15,7 @@ judge:
 run:
   attack_categories:
     - direct_injection
+    - indirect_injection
     - jailbreak
     - system_prompt_leak
     - benign_baseline

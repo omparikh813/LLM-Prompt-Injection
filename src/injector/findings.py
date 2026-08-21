@@ -36,6 +36,10 @@ from .core import build_converter_variants, build_judge_target, build_target, re
 # section 16.
 CATEGORY_FRAMEWORK_MAP: dict[str, dict[str, str]] = {
     "direct_injection": {"owasp": "LLM01: Prompt Injection", "atlas": "AML.T0051.000 (Direct Prompt Injection)"},
+    "indirect_injection": {
+        "owasp": "LLM01: Prompt Injection",
+        "atlas": "AML.T0051.001 (Indirect Prompt Injection via Retrieved Content)",
+    },
     "jailbreak": {"owasp": "LLM01: Prompt Injection", "atlas": "AML.T0054 (LLM Jailbreak)"},
     "system_prompt_leak": {
         "owasp": "LLM06: Sensitive Information Disclosure",
